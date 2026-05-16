@@ -27,11 +27,18 @@ __license__ = "MIT"
 __description__ = "Model Context Protocol server for EG4 solar inverter monitoring and control"
 __url__ = "https://github.com/matt-dreyer/EG4_MCP_server"
 
+# Expose `main` so the `eg4-mcp-server` console script declared in
+# pyproject.toml ([project.scripts] eg4-mcp-server = "eg4_mcp_server:main")
+# can resolve. Without this import the entry point fails with ImportError
+# at invocation time.
+from .server import main
+
 # Package metadata
 __all__ = [
     "FastMCP",
-    "get_api_instance", 
+    "get_api_instance",
     "format_power_value",
     "format_energy_value",
-    "generate_recommendations"
+    "generate_recommendations",
+    "main",
 ]

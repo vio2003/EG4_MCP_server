@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.11'",
@@ -396,7 +396,7 @@ wheels = [
 
 [[package]]
 name = "eg4-mcp-server"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -432,7 +432,7 @@ test = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.8.5" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
-    { name = "eg4-python" },
+    { name = "eg4-python", git = "https://github.com/vio2003/eg4_python.git?rev=feat%2Fmonthly-and-daily-energy-endpoints" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.11.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.5.0" },
@@ -454,14 +454,10 @@ provides-extras = ["dev", "test", "docs"]
 [[package]]
 name = "eg4-python"
 version = "0.1.2"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/vio2003/eg4_python.git?rev=feat%2Fmonthly-and-daily-energy-endpoints#758611ac67d992f68a2faeb29fd2309023e7dd49" }
 dependencies = [
     { name = "aiohttp" },
     { name = "python-dotenv" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fb/63/3f8712c339e3eb66eae9bea0b3e787bf1670c1202cde6f8d2da5fb5523c2/eg4_python-0.1.2.tar.gz", hash = "sha256:50326fa09b3c6ee11b0daf06af0de5ab1b794a2504dc11ecf052321785f67ad0", size = 18343, upload-time = "2025-07-15T21:22:49.812Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/51/5cc2320854e8e348de5328ce32b30ffb775519e73c83f6ae038d9b91c556/eg4_python-0.1.2-py3-none-any.whl", hash = "sha256:631559e1045581761008f5184409f69d788fa5a2fde0d51569b6cf3b5cf37ba9", size = 16365, upload-time = "2025-07-15T21:22:48.434Z" },
 ]
 
 [[package]]

@@ -46,10 +46,14 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = [
     "aiohttp>=3.8.5",
-    "python-dotenv>=1.0.0", 
+    "python-dotenv>=1.0.0",
     "mcp[cli]>=1.11.0",
     "httpx>=0.28.1",
-    "eg4-python"
+    # Pinned to fork branch for the get_monthly_energy_async /
+    # get_daily_energy_async methods (vio2003/eg4_python PR #1). Revert
+    # to plain "eg4-python>=X" once the upstream PR lands and a new
+    # PyPI release is cut.
+    "eg4-python @ git+https://github.com/vio2003/eg4_python.git@feat/monthly-and-daily-energy-endpoints",
 ]
 
 [project.optional-dependencies]
@@ -89,6 +93,11 @@ eg4-mcp-server = "eg4_mcp_server:main"
 eg4 = "eg4_mcp_server.server:mcp"
 
 # Hatch build configuration
+[tool.hatch.metadata]
+# Needed because the eg4-python dep is pinned to a git URL while the
+# upstream PR is open. Drop once eg4-python is back on a PyPI version.
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/eg4_mcp_server"]
 

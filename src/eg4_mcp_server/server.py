@@ -951,6 +951,128 @@ async def get_daily_chart_data(
         }, indent=2)
 
 
+# Map a human-friendly column name to the EG4 portal's energyType code.
+# Anything not in this map is passed through verbatim (so callers can
+# supply raw column names too).
+ENERGY_TYPE_ALIASES = {
+    "grid_to_load": "eToUserDay",
+    "grid_import": "eToUserDay",
+    "grid_to_battery": "eRecDay",
+    "rectifier": "eRecDay",
+    "grid_export": "eToGridDay",
+    "battery_charge": "eChgDay",
+    "battery_discharge": "eDisChgDay",
+    "solar_pv1": "ePv1Day",
+    "solar_pv2": "ePv2Day",
+    "solar_pv3": "ePv3Day",
+    "inverter_output": "eInvDay",
+}
+
+
+def _resolve_energy_type(name: str) -> str:
+    return ENERGY_TYPE_ALIASES.get(name.lower(), name)
+
+
+@mcp.tool("Get_Energy_Range")
+async def get_energy_range(
+    start_date: str,
+    end_date: str,
+    energy_type: str = "grid_import",
+    system_id: Optional[int] = None,
+) -> str:
+    """Sum a single energy column across an arbitrary date range.
+
+    Use this for questions like "how much grid power did I import between
+    March 24 and April 24" or "what was my solar generation for last month."
+
+    Args:
+        start_date: Inclusive start date, ISO format (YYYY-MM-DD).
+        end_date: Inclusive end date, ISO format (YYYY-MM-DD).
+        energy_type: Either a friendly alias or a raw EG4 column name.
+            Aliases (lower_snake_case):
+              grid_import / grid_to_load   ->  eToUserDay   (typical "grid import")
+              grid_to_battery / rectifier  ->  eRecDay
+              grid_export                  ->  eToGridDay
+              solar_pv1 / solar_pv2 / solar_pv3
+              battery_charge / battery_discharge
+              inverter_output              ->  eInvDay
+            Raw EG4 column names (e.g. "eToUserDay") are passed through.
+            Defaults to "grid_import".
+        system_id: Optional inverter index (defaults to first inverter).
+
+    Returns:
+        JSON with the per-day breakdown, the per-month subtotals, and the
+        range total in kWh. Pair eToUserDay + eRecDay if you want
+        "total grid import including battery charging from grid."
+    """
+    try:
+        from datetime import date as _date
+
+        try:
+            start = _date.fromisoformat(start_date)
+            end = _date.fromisoformat(end_date)
+        except ValueError as e:
+            return json.dumps({"error": f"Invalid date: {e}"}, indent=2)
+        if end < start:
+            return json.dumps({"error": "end_date is before start_date"}, indent=2)
+
+        column = _resolve_energy_type(energy_type)
+        api = await get_api_instance()
+        if system_id is not None:
+            api.set_selected_inverter(inverterIndex=system_id)
+
+        # Iterate one month at a time. The API returns one full month
+        # per call; we sum only the days that fall inside [start, end].
+        per_day = []
+        per_month = {}
+        total_kwh = 0.0
+        year, month = start.year, start.month
+        while (year, month) <= (end.year, end.month):
+            data = await api.get_monthly_energy_async(year, month, energy_type=column)
+            if not getattr(data, "success", False):
+                return json.dumps({
+                    "error": f"API call failed for {year}-{month:02d}: "
+                             f"{getattr(data, 'error_message', 'unknown')}",
+                    "energy_type_resolved": column,
+                }, indent=2)
+            month_start = max(start, _date(year, month, 1))
+            # Last day of month: roll forward
+            if month == 12:
+                first_next = _date(year + 1, 1, 1)
+            else:
+                first_next = _date(year, month + 1, 1)
+            month_end = min(end, _date(year, month, (first_next.toordinal() - _date(year, month, 1).toordinal())))
+            month_sum = data.total_kwh_in_range(month_start.day, month_end.day)
+            per_month[f"{year}-{month:02d}"] = round(month_sum, 2)
+            total_kwh += month_sum
+            for p in data.points:
+                if month_start.day <= (p.day or 0) <= month_end.day:
+                    per_day.append({
+                        "date": f"{year}-{month:02d}-{p.day:02d}",
+                        "kwh": round(p.energy_kwh, 2),
+                    })
+            if month == 12:
+                year, month = year + 1, 1
+            else:
+                month += 1
+
+        return json.dumps({
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+            "energy_type_requested": energy_type,
+            "energy_type_resolved": column,
+            "total_kwh": round(total_kwh, 2),
+            "per_month_kwh": per_month,
+            "per_day_kwh": per_day,
+            "timestamp": datetime.now().isoformat(),
+        }, indent=2)
+    except Exception as e:
+        logger.error(f"Error in get_energy_range: {e}")
+        return json.dumps({
+            "error": f"Error getting energy range: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }, indent=2)
+
 
 # Cleanup function for graceful shutdown
 async def cleanup():

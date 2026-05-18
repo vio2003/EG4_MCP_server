@@ -1074,6 +1074,55 @@ async def get_energy_range(
         }, indent=2)
 
 
+@mcp.tool("Set_AC_Charge_SOC_Limit")
+async def set_ac_charge_soc_limit(
+    value: int,
+    system_id: Optional[int] = None,
+) -> str:
+    """Set the inverter's "Stop AC Charge" SOC limit (HOLD_AC_CHARGE_SOC_LIMIT).
+
+    When AC charging is enabled, the inverter pulls from the grid to charge the
+    battery until it reaches this SOC percentage, then stops. Writes the value
+    via the EG4 portal's remoteSet/write endpoint.
+
+    Args:
+        value: Target SOC percentage (integer, 10-100 inclusive).
+        system_id: Optional inverter index (defaults to first inverter).
+
+    Returns:
+        JSON with success flag, the value written, and a timestamp.
+    """
+    try:
+        if not isinstance(value, int) or value < 10 or value > 100:
+            return json.dumps({
+                "success": False,
+                "error": f"value must be an integer between 10 and 100, got {value!r}",
+                "timestamp": datetime.now().isoformat(),
+            }, indent=2)
+
+        api = await get_api_instance()
+        if system_id is not None:
+            api.set_selected_inverter(inverterIndex=system_id)
+
+        success = await api.write_setting_async("HOLD_AC_CHARGE_SOC_LIMIT", str(value))
+        logger.info(
+            f"Set_AC_Charge_SOC_Limit value={value} success={success}"
+        )
+        return json.dumps({
+            "success": bool(success),
+            "hold_param": "HOLD_AC_CHARGE_SOC_LIMIT",
+            "value": value,
+            "timestamp": datetime.now().isoformat(),
+        }, indent=2)
+    except Exception as e:
+        logger.error(f"Error in set_ac_charge_soc_limit: {e}")
+        return json.dumps({
+            "success": False,
+            "error": f"Error setting AC charge SOC limit: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }, indent=2)
+
+
 # Cleanup function for graceful shutdown
 async def cleanup():
     """Clean up API connections on shutdown."""
